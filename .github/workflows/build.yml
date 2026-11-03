@@ -1,0 +1,117 @@
+name: Build & release apps
+
+on:
+  push:
+    branches: [main, master, 'claude/**']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    name: Web app
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm run build
+      - uses: actions/upload-pages-artifact@v3
+        with: { path: dist }
+
+  windows:
+    name: Windows .exe
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm run build
+      - run: npx electron-builder --win nsis --publish never
+        env: { CSC_IDENTITY_AUTO_DISCOVERY: 'false' }
+      - uses: actions/upload-artifact@v4
+        with: { name: windows, path: release/Meeto-Setup.exe, if-no-files-found: error }
+
+  linux:
+    name: Linux AppImage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm run build
+      - run: npx electron-builder --linux AppImage --publish never
+      - uses: actions/upload-artifact@v4
+        with: { name: linux, path: release/Meeto.AppImage, if-no-files-found: error }
+
+  android:
+    name: Android .apk
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 21 }
+      - run: npm ci
+      - run: npm run build
+      - name: Create Android project
+        run: |
+          npx cap add android
+          npx cap sync android
+      - name: Camera and microphone permissions
+        run: |
+          sed -i 's#</manifest>#    <uses-permission android:name="android.permission.CAMERA" />\n    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />\n    <uses-feature android:name="android.hardware.camera" android:required="false" />\n</manifest>#' android/app/src/main/AndroidManifest.xml
+          cat android/app/src/main/AndroidManifest.xml
+      - name: Build APK
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon
+      - run: cp android/app/build/outputs/apk/debug/app-debug.apk Meeto.apk
+      - uses: actions/upload-artifact@v4
+        with: { name: android, path: Meeto.apk, if-no-files-found: error }
+
+  release:
+    name: Publish release
+    needs: [windows, linux, android]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { path: out, merge-multiple: true }
+      - run: ls -la out
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v0.1.${{ github.run_number }}
+          name: Meeto 0.1.${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
+          make_latest: true
+          body: |
+            Download Meeto:
+            - **Windows**: `Meeto-Setup.exe` (Windows may warn because the installer isn't code-signed yet: click *More info → Run anyway*)
+            - **Android**: `Meeto.apk` (allow "Install unknown apps" for your browser)
+            - **Linux**: `Meeto.AppImage` (`chmod +x Meeto.AppImage` then run it)
+          files: |
+            out/Meeto-Setup.exe
+            out/Meeto.apk
+            out/Meeto.AppImage
+
+  pages:
+    name: Deploy website
+    needs: web
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    # Needs Settings → Pages → Source: "GitHub Actions". Won't fail the build if Pages is off.
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    environment: { name: github-pages, url: '${{ steps.deploy.outputs.page_url }}' }
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4

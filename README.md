@@ -1,80 +1,128 @@
-# Meeto
+<div align="center">
 
-Open-source video meetings for web and desktop, built on WebRTC.
+<img src="public/icon.svg" width="96" alt="Meeto logo" />
 
-> Status: design phase. UI mockups are done; implementation has not started.
+# meeto.
 
-## Why Meeto instead of Zoom
+**Free, open-source, peer-to-peer video meetings.**
+No account. No time limit. No server in the middle.
 
-| | Zoom (free) | Meeto |
+<a href="https://github.com/rayan-afkkk/meeto/releases/latest/download/Meeto-Setup.exe"><img src="https://img.shields.io/badge/Download_for_Windows-.exe-FF6B3D?style=for-the-badge&logo=windows&logoColor=white" alt="Download for Windows" height="44" /></a>
+&nbsp;
+<a href="https://github.com/rayan-afkkk/meeto/releases/latest/download/Meeto.apk"><img src="https://img.shields.io/badge/Download_for_Android-.apk-CFEBC0?style=for-the-badge&logo=android&logoColor=2C6419&labelColor=2C6419" alt="Download for Android" height="44" /></a>
+
+<a href="https://github.com/rayan-afkkk/meeto/releases/latest/download/Meeto.AppImage"><img src="https://img.shields.io/badge/Linux-AppImage-F7E2A8?style=for-the-badge&logo=linux&logoColor=6A4700&labelColor=6A4700" alt="Download for Linux" height="32" /></a>
+&nbsp;
+<a href="https://rayan-afkkk.github.io/meeto/"><img src="https://img.shields.io/badge/Open_in_browser-web_app-C9DBF7?style=for-the-badge&logo=googlechrome&logoColor=1E4A9A&labelColor=1E4A9A" alt="Open the web app" height="32" /></a>
+
+<sub>Click a button and the download starts. Every push builds fresh apps, see <a href="https://github.com/rayan-afkkk/meeto/releases">Releases</a>.</sub>
+
+<br /><br />
+
+<img src="docs/home.png" alt="Meeto home screen" width="860" />
+
+</div>
+
+## Why Meeto beats Zoom
+
+| | Zoom (free) | **Meeto** |
 |---|---|---|
-| Join as a guest | App or account usually pushed | Click a link in any browser. No account, no install |
-| Encryption | E2EE is opt-in and turns off some features | End-to-end encrypted by default (WebRTC Encoded Transforms / SFrame) |
-| Time limit | 40 min for group calls | None |
-| Captions & notes | Cloud AI, paid tiers | Run **on your device** (Whisper + small LLM via WebGPU). Audio never leaves your machine |
-| Joining late | You missed it | "Catch me up": a summary of what you missed |
-| After the call | Recording | Auto recap: summary, decisions, action items, searchable transcript, export to Markdown / GitHub Issues |
-| Bad network | Video freezes | Audio-first low-bandwidth mode, simulcast + adaptive layers |
-| Hosting | Closed SaaS | Self-host with one `docker compose up` |
+| Join a call | App download, often an account | Click a link. Name + go |
+| Time limit | 40 minutes for group calls | **None** |
+| Privacy | Video goes through Zoom's servers | **Peer-to-peer**, encrypted (DTLS-SRTP), nothing stored on a server |
+| Screen share | Fixed quality | **Smooth 60 fps mode** or **Sharp text mode**, bandwidth handed to the screen |
+| Host controls | Yes | Waiting room, mute, stop video, stop share, remove, end for all |
+| Recording | Host/cloud | Anyone can **ask the host** for permission. A **REC badge** shows for everyone |
+| Friends | Contacts tied to an account | Friend codes, online status, **one-tap calling**, no email or phone |
+| Cost | Paid tiers | Free & MIT-licensed |
 
-## Do you need Firebase or user accounts?
+<img src="docs/share.png" alt="Screen sharing with host controls" width="100%" />
 
-**No to both.**
+## Features
 
-- **Accounts:** guests only need a display name and a room link. Accounts are optional, added later only for
-  scheduling, saved recaps and room ownership (e.g. with Auth.js or Supabase Auth).
-- **Firebase:** not needed. WebRTC needs four things, and every one has an open-source, self-hostable option:
+- **Meetings by link**: `New meeting` makes a room; share the link or code (`abc-defg-hjk`).
+- **Profile picture & name**: set once, stored only on your device, shown to people in your calls.
+- **Smooth screen share**: up to 1080p / 60 fps. *Smooth* mode keeps frame rate on bad networks (great for videos and scrolling); *Sharp* mode keeps text crisp. While someone is sharing, cameras automatically use less bandwidth so the share stays fluid. The desktop app has a native "share what?" picker for screens and windows.
+- **In-call chat**: messages go straight from person to person over the P2P connection, so they only exist during the call.
+- **Host controls** (the person who created the room):
+  - Waiting room: people wait until you let them in
+  - Who can share their screen: everyone / ask me / only me
+  - Who can record: everyone / ask me / only me. Viewers **request recording permission**; you approve or deny
+  - Chat on/off, let people unmute themselves or make them ask
+  - Mute, stop video, stop screen share, stop recording, lower hand, or remove anyone; mute all; end for all
+- **Recording**: records the meeting (all voices + video grid or shared screen) to a `.webm` file on your own computer.
+- **Friends**: add by friend code or straight from a call, see who's online, call a friend and their app rings.
+- **Raise hand, reactions, speaking indicator, mobile layout.**
 
-| Piece | What it does | Choice |
-|---|---|---|
-| Signaling | Lets peers find each other and swap offers/ICE candidates | Built into the SFU (LiveKit) — or a tiny WebSocket server |
-| STUN | Finds your public IP | Public STUN or coturn |
-| TURN | Relays media when firewalls block direct links (~10–20% of users) | coturn (self-hosted) |
-| SFU | Forwards video so 3+ people don't each upload N streams | **LiveKit** (Apache-2.0) |
+## How it works (no Firebase, no accounts)
 
-Plain peer-to-peer "mesh" only works well for 2–4 people. An SFU is what makes 10–50 person calls possible.
+```
+  You ──── encrypted audio / video / chat (WebRTC) ──── Friend
+    \                                                     /
+     `── public Nostr relays only help you find each other ─'
+```
 
-## Planned stack
+- **WebRTC mesh**: everyone connects directly to everyone else. Media never touches a Meeto server, because there isn't one.
+- **Signaling via [Trystero](https://github.com/dmotz/trystero)** over public Nostr relays: they pass the tiny "here's how to reach me" messages, then step out of the way.
+- **Who's the host?** Creating a room generates a key pair, and the room code is a hash of the public key. The host proves ownership by signing; everyone verifies. No server needs to know.
+- **Friends** each listen on a small P2P "inbox" named after their friend code.
+- Mesh calls are best for **up to ~8 people**. Bigger rooms would need an SFU (see roadmap).
+- On networks that block the public relays, point Meeto at your own relay: open `…/?relay=wss://your-relay.example`.
 
-- **Web app:** React + TypeScript + Vite, Tailwind
-- **Media:** LiveKit server + `livekit-client` (SFU, signaling, simulcast, E2EE)
-- **TURN:** coturn
-- **On-device AI:** Whisper (WebGPU / WASM) for captions; a small local LLM for summaries
-- **Desktop:** Electron wrapper around the same web app (stable WebRTC on every OS, screen-share picker)
-- **Deploy:** Docker Compose (web + LiveKit + coturn + Redis)
+## Run it yourself
 
-## Design
+```bash
+npm install
+```
 
-Black background, warm cream text, a tall serif for headings (Instrument Serif) over a clean sans (DM Sans),
-soft pastel tiles and pills with big rounded corners. Icons and colour do the talking, not paragraphs.
+```bash
+npm run dev
+```
 
-| Token | Value |
-|---|---|
-| Background | `#000000` |
-| Card | `#1A1815` (border `#2A2622`) |
-| Text / primary button | `#F4EEE4` |
-| Muted text | `#A39E95` |
-| Accent | `#FF6B3D` |
-| Pastels | peach `#F9D2B4`, blue `#C9DBF7`, green `#CFEBC0`, mint `#C8EEDD`, lilac `#DCC8F3`, pink `#F5C6C0`, butter `#F7E2A8` |
+Build the website (`dist/`), the desktop app, or the Android project:
 
-## Screens (mockups)
+```bash
+npm run build
+```
 
-1. Home: big pastel tiles (New meeting, Join, Schedule, Share screen), quick rooms, up next
-2. Lobby: camera preview, name, one-tap toggles (captions, blur, data saver)
-3. In call: pastel video tiles, floating control dock, live captions, AI notes, "Catch me up"
-4. Screen share: 1080p/60fps share, live drawing tools, laser pointer, filmstrip
-5. Recap: one-line summary, to-dos, decisions, who talked, chapters
-6. Mobile home
-7. Mobile call
+```bash
+npm run dist:win
+```
+
+```bash
+npm run dist:linux
+```
+
+```bash
+npx cap add android && npx cap sync android
+```
+
+GitHub Actions (`.github/workflows/build.yml`) builds the **Windows .exe**, **Android .apk** and **Linux AppImage** on every push and attaches them to a GitHub Release, which is what the download buttons point to. To publish the website, set *Settings → Pages → Source* to **GitHub Actions**.
+
+> The Windows installer and APK are not code-signed yet, so Windows SmartScreen / Android will ask you to confirm the install.
+> Screen sharing isn't available inside the Android app (Android WebView limitation). Join from the browser on Android to view shares; presenting works on desktop.
+
+## Tech
+
+React 19 · TypeScript · Vite · Trystero (WebRTC + Nostr) · Electron (desktop) · Capacitor (Android) · Web Crypto (host keys) · MediaRecorder (recording)
+
+```
+src/
+  lib/meeting.ts    P2P meeting engine: peers, media, host permissions, chat, screen share tuning
+  lib/hostKeys.ts   room ownership via ECDSA signatures
+  lib/inbox.ts      friends: requests, online status, calls
+  lib/recorder.ts   local meeting recording
+  pages/            Home, Room (lobby + call), Friends, Profile
+electron/           desktop wrapper + native screen picker
+```
 
 ## Roadmap
 
-1. **MVP:** rooms by link, audio/video, mute/camera, screen share, chat, LiveKit + coturn in Docker
-2. **Better than Zoom:** E2EE on by default, raise-hand queue, low-bandwidth mode, live captions
-3. **AI layer:** on-device notes, Catch me up, auto recap and export
-4. **Desktop:** Electron build for macOS, Windows and Linux
-5. **Optional accounts:** scheduling, saved recaps, room ownership
+- [ ] Optional SFU (LiveKit) for 20+ person meetings
+- [ ] On-device live captions & AI meeting recap
+- [ ] Shared whiteboard / drawing on screen shares
+- [ ] Code-signed Windows & macOS builds, Play Store listing
 
 ## License
 
-MIT (planned)
+MIT

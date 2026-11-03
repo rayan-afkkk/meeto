@@ -1,0 +1,6 @@
+{
+  "appId": "app.meeto.mobile",
+  "appName": "Meeto",
+  "webDir": "dist",
+  "android": { "backgroundColor": "#000000" }
+}

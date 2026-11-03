@@ -43,13 +43,29 @@ Plain peer-to-peer "mesh" only works well for 2–4 people. An SFU is what makes
 - **Desktop:** Electron wrapper around the same web app (stable WebRTC on every OS, screen-share picker)
 - **Deploy:** Docker Compose (web + LiveKit + coturn + Redis)
 
+## Design
+
+Black background, warm cream text, a tall serif for headings (Instrument Serif) over a clean sans (DM Sans),
+soft pastel tiles and pills with big rounded corners. Icons and colour do the talking, not paragraphs.
+
+| Token | Value |
+|---|---|
+| Background | `#000000` |
+| Card | `#1A1815` (border `#2A2622`) |
+| Text / primary button | `#F4EEE4` |
+| Muted text | `#A39E95` |
+| Accent | `#FF6B3D` |
+| Pastels | peach `#F9D2B4`, blue `#C9DBF7`, green `#CFEBC0`, mint `#C8EEDD`, lilac `#DCC8F3`, pink `#F5C6C0`, butter `#F7E2A8` |
+
 ## Screens (mockups)
 
-1. Home: new meeting / join with code, upcoming meetings, recent recaps
-2. Pre-join lobby: camera and mic check, name, no account needed
-3. In call: grid, live captions, raise-hand queue, AI notes side panel, "Catch me up"
-4. Recap: summary, chapters, decisions, action items, transcript
-5. Mobile in-call
+1. Home: big pastel tiles (New meeting, Join, Schedule, Share screen), quick rooms, up next
+2. Lobby: camera preview, name, one-tap toggles (captions, blur, data saver)
+3. In call: pastel video tiles, floating control dock, live captions, AI notes, "Catch me up"
+4. Screen share: 1080p/60fps share, live drawing tools, laser pointer, filmstrip
+5. Recap: one-line summary, to-dos, decisions, who talked, chapters
+6. Mobile home
+7. Mobile call
 
 ## Roadmap
 

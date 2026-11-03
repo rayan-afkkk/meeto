@@ -1,7 +1,7 @@
 import { Emitter } from './store'
 
 export const REPO = 'rayan-afkkk/meeto'
-export const WEB_URL = 'https://rayan-afkkk.github.io/meeto/'
+export const WEB_URL = 'https://meetop2p.vercel.app/'
 const DL = `https://github.com/${REPO}/releases/latest/download`
 export const DOWNLOADS = {
   windows: `${DL}/Meeto-Setup.exe`,

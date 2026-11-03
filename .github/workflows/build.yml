@@ -7,8 +7,6 @@ on:
 
 permissions:
   contents: write
-  pages: write
-  id-token: write
 
 concurrency:
   group: build-${{ github.ref }}
@@ -24,8 +22,6 @@ jobs:
         with: { node-version: 22, cache: npm }
       - run: npm ci
       - run: npm run build
-      - uses: actions/upload-pages-artifact@v3
-        with: { path: dist }
 
   windows:
     name: Windows .exe
@@ -103,15 +99,3 @@ jobs:
             out/Meeto-Setup.exe
             out/Meeto.apk
             out/Meeto.AppImage
-
-  pages:
-    name: Deploy website
-    needs: web
-    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
-    # Needs Settings → Pages → Source: "GitHub Actions". Won't fail the build if Pages is off.
-    continue-on-error: true
-    runs-on: ubuntu-latest
-    environment: { name: github-pages, url: '${{ steps.deploy.outputs.page_url }}' }
-    steps:
-      - id: deploy
-        uses: actions/deploy-pages@v4

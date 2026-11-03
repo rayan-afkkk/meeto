@@ -7,13 +7,15 @@
 **Free, open-source, peer-to-peer video meetings.**
 No account. No time limit. No server in the middle.
 
+### [meetop2p.vercel.app](https://meetop2p.vercel.app)
+
 <a href="https://github.com/rayan-afkkk/meeto/releases/latest/download/Meeto-Setup.exe"><img src="https://img.shields.io/badge/Download_for_Windows-.exe-FF6B3D?style=for-the-badge&logo=windows&logoColor=white" alt="Download for Windows" height="44" /></a>
 &nbsp;
 <a href="https://github.com/rayan-afkkk/meeto/releases/latest/download/Meeto.apk"><img src="https://img.shields.io/badge/Download_for_Android-.apk-CFEBC0?style=for-the-badge&logo=android&logoColor=2C6419&labelColor=2C6419" alt="Download for Android" height="44" /></a>
 
 <a href="https://github.com/rayan-afkkk/meeto/releases/latest/download/Meeto.AppImage"><img src="https://img.shields.io/badge/Linux-AppImage-F7E2A8?style=for-the-badge&logo=linux&logoColor=6A4700&labelColor=6A4700" alt="Download for Linux" height="32" /></a>
 &nbsp;
-<a href="https://rayan-afkkk.github.io/meeto/"><img src="https://img.shields.io/badge/Open_in_browser-web_app-C9DBF7?style=for-the-badge&logo=googlechrome&logoColor=1E4A9A&labelColor=1E4A9A" alt="Open the web app" height="32" /></a>
+<a href="https://meetop2p.vercel.app"><img src="https://img.shields.io/badge/Open_in_browser-web_app-C9DBF7?style=for-the-badge&logo=googlechrome&logoColor=1E4A9A&labelColor=1E4A9A" alt="Open the web app" height="32" /></a>
 
 <sub>Click a button and the download starts. Every push builds fresh apps, see <a href="https://github.com/rayan-afkkk/meeto/releases">Releases</a>.</sub>
 
@@ -97,7 +99,7 @@ npm run dist:linux
 npx cap add android && npx cap sync android
 ```
 
-GitHub Actions (`.github/workflows/build.yml`) builds the **Windows .exe**, **Android .apk** and **Linux AppImage** on every push and attaches them to a GitHub Release, which is what the download buttons point to. To publish the website, set *Settings → Pages → Source* to **GitHub Actions**.
+GitHub Actions (`.github/workflows/build.yml`) builds the **Windows .exe**, **Android .apk** and **Linux AppImage** on every push and attaches them to a GitHub Release, which is what the download buttons point to. The website is hosted on [Vercel](https://meetop2p.vercel.app): import the repo, framework preset **Vite**, output directory `dist`.
 
 > The Windows installer and APK are not code-signed yet, so Windows SmartScreen / Android will ask you to confirm the install.
 > Screen sharing isn't available inside the Android app (Android WebView limitation). Join from the browser on Android to view shares; presenting works on desktop.

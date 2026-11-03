@@ -303,6 +303,10 @@ a { color: inherit; }
 .toggle-chip[aria-pressed='true'].lilac { background: var(--lilac); color: var(--lilac-ink); border-color: transparent; }
 .toggle-chip[aria-pressed='true'].butter { background: var(--butter); color: var(--butter-ink); border-color: transparent; }
 
+.device-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+.device-row label { display: flex; flex-direction: column; gap: 6px; }
+.device-row select { min-height: 48px; font-size: 14px; padding: 0 16px; appearance: auto; }
+
 /* ---------- Center states ---------- */
 .center { flex: 1; display: grid; place-items: center; text-align: center; padding: 24px; }
 .center h1 { font-family: var(--serif); font-weight: 400; font-size: clamp(48px, 8vw, 84px); margin: 0; line-height: .95; }

@@ -2,11 +2,11 @@ import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 're
 import { Icon } from '../components/Icon'
 import { Avatar, Modal, Setting, Switch } from '../components/ui'
 import { Meeting, type Peer, type Perms } from '../lib/meeting'
-import { getLocalMedia, LevelMeter } from '../lib/media'
+import { getLocalMedia, isVideoBlack, LevelMeter, listDevices, type DeviceChoice } from '../lib/media'
 import { pastelFor, profileStore } from '../lib/profile'
 import { prettyRoomId } from '../lib/hostKeys'
 import { canShareScreen, copyText, isDesktopApp, navigate, roomLink, toast, type DesktopSource } from '../lib/platform'
-import { useEmitter } from '../lib/store'
+import { readJSON, useEmitter, writeJSON } from '../lib/store'
 import { AvatarPicker } from './Profile'
 
 /* =================================================================== */
@@ -59,24 +59,43 @@ function Lobby({ roomId, title, onJoin }: { roomId: string; title?: string; onJo
   const videoRef = useRef<HTMLVideoElement>(null)
   const handedOff = useRef(false)
 
+  const [devices, setDevices] = useState<{ cams: MediaDeviceInfo[]; mics: MediaDeviceInfo[] }>({ cams: [], mics: [] })
+  const [choice, setChoice] = useState<DeviceChoice>(() => readJSON('meeto.devices', {}))
+  const [attempt, setAttempt] = useState(0)
+  const [black, setBlack] = useState(false)
+  const streamRef = useRef<MediaStream | null>(null)
+
+  // (re)start camera + mic whenever the chosen devices change or the user taps Try again
   useEffect(() => {
     let alive = true
-    let s: MediaStream | null = null
-    getLocalMedia(p.dataSaver).then((r) => {
+    streamRef.current?.getTracks().forEach((t) => t.stop())
+    streamRef.current = null
+    setStream(null)
+    setBlack(false)
+    getLocalMedia(p.dataSaver, choice).then(async (r) => {
       if (!alive) return r.stream.getTracks().forEach((t) => t.stop())
-      s = r.stream
+      streamRef.current = r.stream
       setStream(r.stream)
       setError(r.error)
+      setDevices(await listDevices()) // labels only appear after permission is granted
     })
     return () => {
       alive = false
-      if (!handedOff.current) s?.getTracks().forEach((t) => t.stop())
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [choice, attempt])
+
+  // stop the camera if we leave the lobby without joining
+  useEffect(() => () => {
+    if (!handedOff.current) streamRef.current?.getTracks().forEach((t) => t.stop())
   }, [])
 
   useEffect(() => {
-    if (videoRef.current && stream) videoRef.current.srcObject = stream
+    const v = videoRef.current
+    if (v && stream) {
+      if (v.srcObject !== stream) v.srcObject = stream
+      v.play().catch(() => {})
+    }
     if (!stream?.getAudioTracks().length) return
     const meter = new LevelMeter()
     meter.track('me', stream)
@@ -86,6 +105,25 @@ function Lobby({ roomId, title, onJoin }: { roomId: string; title?: string; onJo
       meter.close()
     }
   }, [stream, cam])
+
+  // a camera that is "on" but only sends black (privacy shutter, idle virtual camera, driver issue)
+  useEffect(() => {
+    if (!stream || !cam || !stream.getVideoTracks().length) return setBlack(false)
+    let blackFor = 0
+    const t = setInterval(() => {
+      const v = videoRef.current
+      if (!v) return
+      blackFor = isVideoBlack(v) ? blackFor + 1 : 0
+      setBlack(blackFor >= 3)
+    }, 1000)
+    return () => clearInterval(t)
+  }, [stream, cam])
+
+  const pickDevice = (patch: DeviceChoice) => {
+    const next = { ...choice, ...patch }
+    writeJSON('meeto.devices', next)
+    setChoice(next)
+  }
 
   useEffect(() => {
     stream?.getAudioTracks().forEach((t) => (t.enabled = mic))
@@ -169,7 +207,47 @@ function Lobby({ roomId, title, onJoin }: { roomId: string; title?: string; onJo
                 <Icon name="wifi" size={18} /> Data saver
               </button>
             </div>
-            {error && <p className="muted" style={{ margin: 0, fontSize: 14 }}>{error}</p>}
+            {(error || black) && (
+              <div className="request" role="alert">
+                <b>{black ? 'Your camera is on but the picture is black' : 'Camera or mic problem'}</b>
+                <span style={{ fontSize: 14, lineHeight: 1.45 }}>
+                  {black
+                    ? 'Open the privacy shutter or press your laptop’s camera key (often F8/F10), close other apps using the camera, or pick a different camera below. If “OBS Virtual Camera” is selected, choose your real webcam.'
+                    : error}
+                </span>
+                <div className="row">
+                  <button className="btn dark" onClick={() => setAttempt((a) => a + 1)}><Icon name="refresh" size={16} /> Try again</button>
+                </div>
+              </div>
+            )}
+            {(devices.cams.length > 1 || devices.mics.length > 1 || black || error) && (devices.cams.length > 0 || devices.mics.length > 0) && (
+              <div className="device-row">
+                {devices.cams.length > 0 && (
+                  <label>
+                    <span className="eyebrow">Camera</span>
+                    <select
+                      className="field"
+                      value={choice.videoId ?? stream?.getVideoTracks()[0]?.getSettings().deviceId ?? ''}
+                      onChange={(e) => pickDevice({ videoId: e.target.value })}
+                    >
+                      {devices.cams.map((d, i) => <option key={d.deviceId} value={d.deviceId}>{d.label || `Camera ${i + 1}`}</option>)}
+                    </select>
+                  </label>
+                )}
+                {devices.mics.length > 0 && (
+                  <label>
+                    <span className="eyebrow">Microphone</span>
+                    <select
+                      className="field"
+                      value={choice.audioId ?? stream?.getAudioTracks()[0]?.getSettings().deviceId ?? ''}
+                      onChange={(e) => pickDevice({ audioId: e.target.value })}
+                    >
+                      {devices.mics.map((d, i) => <option key={d.deviceId} value={d.deviceId}>{d.label || `Microphone ${i + 1}`}</option>)}
+                    </select>
+                  </label>
+                )}
+              </div>
+            )}
             <button className="btn cream big block" onClick={join} disabled={!stream || joining}>
               {joining ? 'Joining…' : <>Join now <Icon name="arrow" size={20} /></>}
             </button>
@@ -411,7 +489,13 @@ function StreamVideo({ stream, mirror, fit = 'cover' }: { stream: MediaStream; m
   const ref = useRef<HTMLVideoElement>(null)
   useEffect(() => {
     const v = ref.current
-    if (v && v.srcObject !== stream) v.srcObject = stream
+    if (!v) return
+    if (v.srcObject !== stream) v.srcObject = stream
+    v.play().catch(() => {})
+    // a camera turned back on, or a track added later, needs a nudge on some browsers
+    const replay = () => v.play().catch(() => {})
+    stream.addEventListener('addtrack', replay)
+    return () => stream.removeEventListener('addtrack', replay)
   }, [stream])
   return <video ref={ref} autoPlay playsInline muted className={mirror ? 'mirror' : ''} style={{ objectFit: fit }} />
 }

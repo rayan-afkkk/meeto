@@ -6,7 +6,6 @@
  * "roomId:peerId" and everyone checks the signature and that the key hashes to the room id.
  */
 
-const ALPHABET = 'abcdefghjkmnpqrstuvwxyz23456789'
 const ALGO = { name: 'ECDSA', namedCurve: 'P-256' } as const
 const SIGN = { name: 'ECDSA', hash: 'SHA-256' } as const
 
@@ -15,16 +14,20 @@ const fromB64 = (s: string) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0))
 
 async function roomIdFromKey(pub: Uint8Array) {
   const hash = new Uint8Array(await crypto.subtle.digest('SHA-256', pub))
-  return Array.from(hash.slice(0, 6), (b) => ALPHABET[b % ALPHABET.length]).join('')
+  // 4 letters + 4 digits, e.g. "kmpq4827" (no i/l/o so nothing looks alike)
+  const letters = Array.from(hash.slice(0, 4), (b) => LETTERS[b % LETTERS.length]).join('')
+  const digits = Array.from(hash.slice(4, 8), (b) => String(b % 10)).join('')
+  return letters + digits
 }
+const LETTERS = 'abcdefghjkmnpqrstuvwxyz'
 
-/** Room codes are 6 easy characters ("k7m2qp" -> "k7m-2qp"). Older 10-character codes still work. */
-export const isRoomId = (id: string) => /^[a-z0-9]{6}$|^[a-z0-9]{10}$/.test(id)
+/** Room codes are 8 easy characters like "kmpq4827". Older 6/10-character codes still work. */
+export const isRoomId = (id: string) => /^[a-z0-9]{6}$|^[a-z0-9]{8}$|^[a-z0-9]{10}$/.test(id)
 
-export const prettyRoomId = (id: string) =>
-  id.length === 6 ? `${id.slice(0, 3)}-${id.slice(3)}` : `${id.slice(0, 3)}-${id.slice(3, 7)}-${id.slice(7)}`
+/** Shown exactly as typed: no dashes to get wrong. */
+export const prettyRoomId = (id: string) => id
 
-/** Accepts a code typed any way ("K7M 2QP", "k7m-2qp") or a full link, returns the bare room id or null. */
+/** Accepts a code typed any way ("KMPQ 4827", "kmpq-4827") or a full link, returns the bare room id or null. */
 export function parseRoomInput(input: string): string | null {
   const lower = input.trim().toLowerCase()
   const fromLink = lower.match(/r\/([a-z0-9-]+)/)

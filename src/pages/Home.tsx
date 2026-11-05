@@ -31,7 +31,7 @@ export function Home() {
 
   const join = () => {
     const id = parseRoomInput(code)
-    if (!id) return toast('Type the 6-letter code you were sent, like k7m-2qp')
+    if (!id) return toast('Type the code you were sent, like kmpq4827')
     navigate(`r/${id}`)
   }
 
@@ -77,7 +77,7 @@ export function Home() {
                   id="join-code"
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
-                  placeholder="k7m-2qp"
+                  placeholder="kmpq4827"
                   autoComplete="off"
                   autoCapitalize="off"
                   spellCheck={false}

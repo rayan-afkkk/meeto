@@ -4,8 +4,8 @@ import { Avatar, Modal, Setting, Switch } from '../components/ui'
 import { Meeting, type Peer, type Perms } from '../lib/meeting'
 import { getLocalMedia, isVideoBlack, LevelMeter, listDevices, type DeviceChoice } from '../lib/media'
 import { pastelFor, profileStore } from '../lib/profile'
-import { prettyRoomId } from '../lib/hostKeys'
-import { canShareScreen, copyText, isDesktopApp, navigate, roomLink, toast, type DesktopSource } from '../lib/platform'
+import { isRoomId, prettyRoomId } from '../lib/hostKeys'
+import { canShareScreen, isDesktopApp, navigate, toast, type DesktopSource } from '../lib/platform'
 import { readJSON, useEmitter, writeJSON } from '../lib/store'
 import { AvatarPicker } from './Profile'
 
@@ -19,7 +19,7 @@ export function RoomPage({ roomId, title }: { roomId: string; title?: string }) 
 
   useEffect(() => () => void meeting?.leave(), [meeting])
 
-  if (!/^[a-z0-9]{10}$/.test(roomId)) {
+  if (!isRoomId(roomId)) {
     return (
       <div className="shell"><div className="center"><div>
         <h1>Hmm<span className="dot">.</span></h1>
@@ -40,6 +40,14 @@ export function RoomPage({ roomId, title }: { roomId: string; title?: string }) 
       }}
     />
   )
+}
+
+function copyCode(roomId: string) {
+  const code = prettyRoomId(roomId)
+  navigator.clipboard?.writeText(code).then(
+    () => toast(`Code ${code} copied — send it to friends`),
+    () => toast(`Meeting code: ${code}`),
+  ) ?? toast(`Meeting code: ${code}`)
 }
 
 /* =================================================================== */
@@ -63,6 +71,7 @@ function Lobby({ roomId, title, onJoin }: { roomId: string; title?: string; onJo
   const [choice, setChoice] = useState<DeviceChoice>(() => readJSON('meeto.devices', {}))
   const [attempt, setAttempt] = useState(0)
   const [black, setBlack] = useState(false)
+  const [showDevices, setShowDevices] = useState(false)
   const streamRef = useRef<MediaStream | null>(null)
 
   // (re)start camera + mic whenever the chosen devices change or the user taps Try again
@@ -149,8 +158,8 @@ function Lobby({ roomId, title, onJoin }: { roomId: string; title?: string; onJo
     <div className="shell">
       <header className="topbar">
         <a href="#/" className="wordmark">meeto<span className="dot">.</span></a>
-        <button className="pill" onClick={() => copyText(roomLink(roomId))} style={{ cursor: 'pointer' }}>
-          <Icon name="link" size={14} /> {prettyRoomId(roomId)}
+        <button className="pill" onClick={() => copyCode(roomId)} style={{ cursor: 'pointer' }}>
+          <Icon name="copy" size={14} /> {prettyRoomId(roomId)}
         </button>
       </header>
       <main className="page">
@@ -182,8 +191,15 @@ function Lobby({ roomId, title, onJoin }: { roomId: string; title?: string; onJo
           <section className="lobby-side">
             <div>
               <h1 className="hero-title" style={{ fontSize: 'clamp(56px, 7vw, 84px)' }}>Ready<span className="dot">?</span></h1>
-              <p className="muted" style={{ fontSize: 17, margin: '10px 0 0' }}>{title || 'Meeting'} · {prettyRoomId(roomId)}</p>
+              {title && <p className="muted" style={{ fontSize: 17, margin: '10px 0 0' }}>{title}</p>}
             </div>
+            <button className="code-card" onClick={() => copyCode(roomId)} aria-label={`Meeting code ${prettyRoomId(roomId)}, tap to copy`}>
+              <span>
+                <small>Meeting code</small>
+                <b className="code">{prettyRoomId(roomId)}</b>
+              </span>
+              <span className="code-copy"><Icon name="copy" size={18} /> Copy</span>
+            </button>
             <div className="row" style={{ gap: 16 }}>
               <AvatarPicker size={64} />
               <div style={{ flex: 1 }}>
@@ -199,14 +215,6 @@ function Lobby({ roomId, title, onJoin }: { roomId: string; title?: string; onJo
                 />
               </div>
             </div>
-            <div className="chips">
-              <button className="toggle-chip lilac" aria-pressed={p.smoothShare} onClick={() => profileStore.update({ smoothShare: !p.smoothShare })}>
-                <Icon name="screen" size={18} /> Smooth share
-              </button>
-              <button className="toggle-chip butter" aria-pressed={p.dataSaver} onClick={() => profileStore.update({ dataSaver: !p.dataSaver })}>
-                <Icon name="wifi" size={18} /> Data saver
-              </button>
-            </div>
             {(error || black) && (
               <div className="request" role="alert">
                 <b>{black ? 'Your camera is on but the picture is black' : 'Camera or mic problem'}</b>
@@ -220,7 +228,7 @@ function Lobby({ roomId, title, onJoin }: { roomId: string; title?: string; onJo
                 </div>
               </div>
             )}
-            {(devices.cams.length > 1 || devices.mics.length > 1 || black || error) && (devices.cams.length > 0 || devices.mics.length > 0) && (
+            {(showDevices || black || !!error) && (devices.cams.length > 0 || devices.mics.length > 0) && (
               <div className="device-row">
                 {devices.cams.length > 0 && (
                   <label>
@@ -248,11 +256,13 @@ function Lobby({ roomId, title, onJoin }: { roomId: string; title?: string; onJo
                 )}
               </div>
             )}
+            {!showDevices && !black && !error && (devices.cams.length > 1 || devices.mics.length > 1) && (
+              <button className="btn sm ghost" style={{ alignSelf: 'flex-start' }} onClick={() => setShowDevices(true)}>
+                <Icon name="camera" size={16} /> Change camera or mic
+              </button>
+            )}
             <button className="btn cream big block" onClick={join} disabled={!stream || joining}>
               {joining ? 'Joining…' : <>Join now <Icon name="arrow" size={20} /></>}
-            </button>
-            <button className="btn ghost" onClick={() => copyText(roomLink(roomId))}>
-              <Icon name="copy" size={18} /> Copy invite link
             </button>
           </section>
         </div>
@@ -336,8 +346,8 @@ function MeetingView({ meeting: m, onRejoin }: { meeting: Meeting; onRejoin: () 
         {recorders.length > 0 && <span className="pill rec"><span className="live-dot" /> REC · {recorders.join(', ')}</span>}
         {m.amHost && <span className="pill hide-mobile" style={{ color: 'var(--butter)' }}><Icon name="shield" size={13} /> Host</span>}
         <span className="spacer" />
-        <button className="btn sm butter" style={{ border: 0 }} onClick={() => copyText(roomLink(m.roomId))}>
-          <Icon name="link" size={16} /> <span className="hide-mobile">Invite</span>
+        <button className="btn sm butter" style={{ border: 0 }} onClick={() => copyCode(m.roomId)} aria-label="Copy meeting code">
+          <Icon name="copy" size={16} /> <span className="code">{prettyRoomId(m.roomId)}</span>
         </button>
       </header>
 
@@ -623,8 +633,8 @@ function PeoplePanel({ m }: { m: Meeting }) {
       ))}
       {peers.length === 0 && (
         <div className="card" style={{ textAlign: 'center', background: 'var(--card-2)' }}>
-          <p className="muted" style={{ margin: '0 0 12px' }}>It’s just you. Send the link!</p>
-          <button className="btn sm cream" onClick={() => copyText(roomLink(m.roomId))}><Icon name="link" size={16} /> Copy invite link</button>
+          <p className="muted" style={{ margin: '0 0 12px' }}>It’s just you. Share the code!</p>
+          <button className="btn sm cream" onClick={() => copyCode(m.roomId)}><Icon name="copy" size={16} /> Copy code {prettyRoomId(m.roomId)}</button>
         </div>
       )}
     </div>

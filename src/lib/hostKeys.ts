@@ -15,16 +15,21 @@ const fromB64 = (s: string) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0))
 
 async function roomIdFromKey(pub: Uint8Array) {
   const hash = new Uint8Array(await crypto.subtle.digest('SHA-256', pub))
-  return Array.from(hash.slice(0, 10), (b) => ALPHABET[b % ALPHABET.length]).join('')
+  return Array.from(hash.slice(0, 6), (b) => ALPHABET[b % ALPHABET.length]).join('')
 }
 
-/** "abcdefghjk" -> "abc-defg-hjk" */
-export const prettyRoomId = (id: string) => `${id.slice(0, 3)}-${id.slice(3, 7)}-${id.slice(7)}`
+/** Room codes are 6 easy characters ("k7m2qp" -> "k7m-2qp"). Older 10-character codes still work. */
+export const isRoomId = (id: string) => /^[a-z0-9]{6}$|^[a-z0-9]{10}$/.test(id)
 
-/** Accepts a code, a pretty code or a full link and returns the bare room id, or null. */
+export const prettyRoomId = (id: string) =>
+  id.length === 6 ? `${id.slice(0, 3)}-${id.slice(3)}` : `${id.slice(0, 3)}-${id.slice(3, 7)}-${id.slice(7)}`
+
+/** Accepts a code typed any way ("K7M 2QP", "k7m-2qp") or a full link, returns the bare room id or null. */
 export function parseRoomInput(input: string): string | null {
-  const m = input.trim().toLowerCase().match(/(?:r\/)?([a-z0-9]{3}-?[a-z0-9]{4}-?[a-z0-9]{3})(?![a-z0-9])/)
-  return m ? m[1].replace(/-/g, '') : null
+  const lower = input.trim().toLowerCase()
+  const fromLink = lower.match(/r\/([a-z0-9-]+)/)
+  const raw = (fromLink ? fromLink[1] : lower).replace(/[^a-z0-9]/g, '')
+  return isRoomId(raw) ? raw : null
 }
 
 type StoredHost = { priv: JsonWebKey; pub: string }

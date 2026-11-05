@@ -42,7 +42,7 @@ No account. No time limit. No server in the middle.
 
 ## Features
 
-- **Meetings by link**: `New meeting` makes a room; share the link or code (`abc-defg-hjk`).
+- **Meetings by link**: `New meeting` makes a room; send friends the 6-character code (like `k7m-2qp`).
 - **Profile picture & name**: set once, stored only on your device, shown to people in your calls.
 - **Smooth screen share**: up to 1080p / 60 fps. *Smooth* mode keeps frame rate on bad networks (great for videos and scrolling); *Sharp* mode keeps text crisp. While someone is sharing, cameras automatically use less bandwidth so the share stays fluid. The desktop app has a native "share what?" picker for screens and windows.
 - **In-call chat**: messages go straight from person to person over the P2P connection, so they only exist during the call.

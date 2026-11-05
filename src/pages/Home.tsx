@@ -21,123 +21,118 @@ export async function callFriend(code: string, name: string) {
   if (!ok) toast(`${name} looks offline — send them the link`)
 }
 
-const QUICK = [
-  ['Stand-up', 'mint'],
-  ['1:1', 'pink'],
-  ['Study group', 'butter'],
-  ['Interview', 'blue'],
-  ['Hangout', 'lilac'],
-  ['Game night', 'peach'],
-] as const
-
 export function Home() {
   useEmitter(profileStore)
   useEmitter(inbox)
-  const [joining, setJoining] = useState(false)
   const [code, setCode] = useState('')
+  const [starting, setStarting] = useState(false)
   const name = profileStore.profile.name
   const friends = profileStore.friends.slice(0, 4)
 
   const join = () => {
     const id = parseRoomInput(code)
-    if (!id) return toast('That code doesn’t look right — it’s like abc-defg-hjk')
+    if (!id) return toast('Type the 6-letter code you were sent, like k7m-2qp')
     navigate(`r/${id}`)
   }
 
   return (
     <div style={{ position: 'relative' }}>
       <div className="glow" style={{ top: -240, left: -200 }} />
-      <div className="home-grid">
-        <section className="home-main">
-          <div>
-            <h1 className="hero-title">
-              {name ? <>Hey {name.split(' ')[0]}<span className="dot">.</span></> : <>Let’s meet<span className="dot">.</span></>}
-            </h1>
-            <p className="hero-sub">No sign-up. No time limit. Just a link.</p>
+      <section style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+        <div>
+          <h1 className="hero-title">
+            {name ? <>Hey {name.split(' ')[0]}<span className="dot">.</span></> : <>Let’s meet<span className="dot">.</span></>}
+          </h1>
+          <p className="hero-sub">Free video calls. No sign-up, no time limit.</p>
+        </div>
+
+        <div className="start-grid">
+          <button
+            className="tile peach big-tile"
+            disabled={starting}
+            onClick={async () => {
+              setStarting(true)
+              await startMeeting()
+            }}
+          >
+            <Icon name="video" size={40} />
+            <span>
+              <span className="label">Start a meeting</span>
+              <small>You get a code to share</small>
+            </span>
+          </button>
+
+          <form
+            className="tile blue big-tile"
+            onSubmit={(e) => {
+              e.preventDefault()
+              join()
+            }}
+          >
+            <Icon name="users" size={40} />
+            <span style={{ width: '100%', position: 'relative', zIndex: 1 }}>
+              <label htmlFor="join-code" className="label" style={{ display: 'block' }}>Join with a code</label>
+              <span className="join-box">
+                <input
+                  id="join-code"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  placeholder="k7m-2qp"
+                  autoComplete="off"
+                  autoCapitalize="off"
+                  spellCheck={false}
+                  inputMode="text"
+                  maxLength={40}
+                />
+                <button className="btn cream" type="submit" disabled={!code.trim()}>Join</button>
+              </span>
+            </span>
+          </form>
+        </div>
+
+        <div className="steps">
+          <div><b>1</b><span>Start a meeting</span></div>
+          <div><b>2</b><span>Send the code to friends</span></div>
+          <div><b>3</b><span>They type it in and join</span></div>
+        </div>
+      </section>
+
+      <div className="home-grid" style={{ marginTop: 32 }}>
+        <div className="card" style={{ flex: '1 1 320px', minWidth: 0 }}>
+          <div className="row" style={{ justifyContent: 'space-between' }}>
+            <h2 className="serif" style={{ fontSize: 34, lineHeight: 1 }}>Friends</h2>
+            <a href="#/friends" className="btn sm ghost">See all</a>
           </div>
-
-          <div className="tiles">
-            <button className="tile peach" onClick={() => startMeeting()}>
-              <Icon name="video" size={34} />
-              <span className="label">New meeting</span>
-            </button>
-            <button className="tile blue" onClick={() => setJoining((v) => !v)} aria-expanded={joining}>
-              <Icon name="link" size={34} />
-              <span className="label">Join</span>
-            </button>
-            <a className="tile green" href="#/friends">
-              <Icon name="users" size={34} />
-              <span className="label">Friends</span>
-            </a>
-            <button className="tile lilac" onClick={() => startMeeting('Presentation')}>
-              <Icon name="screen" size={34} />
-              <span className="label">Present</span>
-            </button>
-          </div>
-
-          {joining && (
-            <form
-              className="input-row"
-              style={{ animation: 'pop .35s var(--spring) both' }}
-              onSubmit={(e) => {
-                e.preventDefault()
-                join()
-              }}
-            >
-              <label htmlFor="join-code" className="sr">Meeting code or link</label>
-              <input id="join-code" autoFocus value={code} onChange={(e) => setCode(e.target.value)} placeholder="Paste a link or code" />
-              <button className="btn cream" type="submit">Join <Icon name="arrow" size={18} /></button>
-            </form>
-          )}
-
-          <div>
-            <div className="eyebrow" style={{ marginBottom: 14 }}>Quick rooms</div>
-            <div className="chips">
-              {QUICK.map(([label, tone]) => (
-                <button key={label} className={`chip ${tone}`} onClick={() => startMeeting(label)}>{label}</button>
+          {friends.length === 0 ? (
+            <div style={{ marginTop: 16 }}>
+              <p className="muted" style={{ margin: '0 0 14px' }}>Add friends to call them in one tap.</p>
+              <a href="#/friends" className="btn sm cream"><Icon name="userPlus" size={18} /> Add a friend</a>
+            </div>
+          ) : (
+            <div className="list" style={{ marginTop: 14 }}>
+              {friends.map((f) => (
+                <div key={f.code} className="friend">
+                  <span style={{ position: 'relative' }}>
+                    <Avatar name={f.name} src={f.avatar} seed={f.code} size={44} />
+                    {inbox.online.get(f.code) && <span className="online-dot" style={{ background: '#7fd4a8' }} />}
+                  </span>
+                  <div className="info"><b>{f.name}</b></div>
+                  <button className="icon-btn sm mint" aria-label={`Call ${f.name}`} onClick={() => callFriend(f.code, f.name)}>
+                    <Icon name="video" size={18} />
+                  </button>
+                </div>
               ))}
             </div>
-          </div>
-        </section>
-
-        <aside className="home-side">
-          <div className="card">
-            <div className="row" style={{ justifyContent: 'space-between' }}>
-              <h2 className="serif" style={{ fontSize: 34, lineHeight: 1 }}>Friends</h2>
-              <a href="#/friends" className="btn sm ghost">See all</a>
-            </div>
-            {friends.length === 0 ? (
-              <div style={{ marginTop: 16 }}>
-                <p className="muted" style={{ margin: '0 0 14px' }}>Add friends to call them in one tap.</p>
-                <a href="#/friends" className="btn sm cream"><Icon name="userPlus" size={18} /> Add a friend</a>
-              </div>
-            ) : (
-              <div className="list" style={{ marginTop: 14 }}>
-                {friends.map((f) => (
-                  <div key={f.code} className="friend">
-                    <span style={{ position: 'relative' }}>
-                      <Avatar name={f.name} src={f.avatar} seed={f.code} size={44} />
-                      {inbox.online.get(f.code) && <span className="online-dot" style={{ background: '#7fd4a8' }} />}
-                    </span>
-                    <div className="info"><b>{f.name}</b></div>
-                    <button className="icon-btn sm mint" aria-label={`Call ${f.name}`} onClick={() => callFriend(f.code, f.name)}>
-                      <Icon name="video" size={18} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {!isNativeApp && <DownloadCard />}
-        </aside>
+          )}
+        </div>
+        {!isNativeApp && <div style={{ flex: '1 1 320px', minWidth: 0 }}><DownloadCard /></div>}
       </div>
 
       <div className="features">
-        <Feature tone="mint" icon="lock" title="Private by design" text="Video goes straight between people, encrypted. No server in the middle." />
-        <Feature tone="peach" icon="bolt" title="No time limit" text="Talk for 5 minutes or 5 hours. Free, forever." />
-        <Feature tone="lilac" icon="screen" title="Buttery screen share" text="Up to 60 fps, with the bandwidth handed to your screen." />
-        <Feature tone="blue" icon="shield" title="You’re the host" text="Waiting room, mute, remove, and permission for sharing and recording." />
+        <Feature tone="mint" icon="lock" title="Private" text="Video goes straight between people, encrypted." />
+        <Feature tone="peach" icon="bolt" title="No time limit" text="Talk as long as you want. Free, forever." />
+        <Feature tone="lilac" icon="screen" title="Smooth screen share" text="Up to 60 fps." />
+        <Feature tone="blue" icon="shield" title="You’re the host" text="Waiting room, mute, remove, and who can share or record." />
       </div>
     </div>
   )
